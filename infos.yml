@@ -1,0 +1,7 @@
+---
+region: eu-central-1
+project: test
+env: test
+instances_type: t2.micro
+instances_running: 2
+ami_id: ami-0b74f796d330ab49c #Make sure your AMI is available in your region.

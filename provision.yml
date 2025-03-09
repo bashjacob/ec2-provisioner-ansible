@@ -1,0 +1,84 @@
+---
+- name: "Launch AWS infrastructure"
+  hosts: localhost
+  vars_files:
+    - secrets.yml
+    - infos.yml
+  tasks:
+
+    - name: "Create keypair"
+      amazon.aws.ec2_key:
+        region: "{{ region }}"
+        access_key: "{{ access_key }}"
+        secret_key: "{{ secret_key }}"
+        name: "{{ project }}-{{ env }}-key"
+        state: present
+      register: key_value
+
+    - name: "Save keypair locally"
+      when: key_value.changed == true
+      ansible.builtin.copy:
+        content: "{{ key_value.key.private_key }}"
+        dest: "{{ project }}-{{ env }}.pem"
+        mode: 0400
+
+    - name: "Create security group"
+      amazon.aws.ec2_security_group:
+        region: "{{ region }}"
+        access_key: "{{ access_key }}"
+        secret_key: "{{ secret_key }}"
+        name: "{{ project }}-{{ env }}-sg"
+        description: "{{ project }}-{{ env }}"
+        tags:
+          Name: "{{ project }}-{{ env }}"
+          project: "{{ project }}"
+          env: "{{ env }}"
+        rules:
+          - ports:
+              - 22
+            proto: tcp
+            cidr_ip: 0.0.0.0/0
+
+          - ports:
+              - 80
+            proto: tcp
+            cidr_ip: 0.0.0.0/0
+      register: sg_status
+
+    - name: "Launch instances"
+      amazon.aws.ec2_instance:
+        region: "{{ region }}"
+        access_key: "{{ access_key }}"
+        secret_key: "{{ secret_key }}"
+        name: "{{ project }}-{{ env }}"
+        key_name: "{{ key_value.key.name }}"
+        instance_type: "{{ instances_type }}"
+        exact_count: "{{ instances_running }}"
+        filters:
+          "tag:Name": "{{ project }}-{{ env }}"
+          "tag:project": "{{ project }}"
+          "tag:env": "{{ env }}"
+        security_groups:
+          - "{{ sg_status.group_id }}"
+        image_id: "{{ ami_id }}"
+        tags:
+          Name: "{{ project }}-{{ env }}"
+          project: "{{ project }}"
+          env: "{{ env }}"
+
+    - name: "Gather instance information"
+      amazon.aws.ec2_instance_info:
+        access_key: "{{ access_key }}"
+        secret_key: "{{ secret_key }}"
+        region: "{{ region }}"
+        filters:
+          "tag:Name": "{{ project }}-{{ env }}"
+          "tag:project": "{{ project }}"
+          "tag:env": "{{ env }}"
+      register: ec2_instances
+
+    - name: "Create inventory file"
+      ansible.builtin.template:
+        src: inventory.ini.j2
+        dest: aws-{{ project }}-{{ env }}.ini
+        mode: '0644'
