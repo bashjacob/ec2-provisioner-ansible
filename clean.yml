@@ -35,10 +35,15 @@
         name: "{{ project }}-{{ env }}-sg"
         state: absent
 
-    - name: "Delete keypair"
+    - name: "Delete keypair from AWS"
       amazon.aws.ec2_key:
         region: "{{ region }}"
         access_key: "{{ access_key }}"
         secret_key: "{{ secret_key }}"
         name: "{{ project }}-{{ env }}-key"
+        state: absent
+
+    - name: "Delete keypair from controller"
+      ansible.builtin.file:
+        path: "{{ project }}-{{ env }}.pem"
         state: absent

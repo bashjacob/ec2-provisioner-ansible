@@ -285,6 +285,7 @@ This will:
 1. Terminate all EC2 instances associated with the project and environment
 2. Delete the security group
 3. Remove the key pair from AWS
+4. Remove the key from control plane
 
 ## Project Structure
 
